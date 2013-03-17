@@ -1,10 +1,12 @@
 (in-package :sforth)
 
 (defword 2 + (x y)
-  (f-push (+ x y)))
+  ;; (f-push (+ x y))
+  (+ x y))
 
 (defword 2 - (x y)
-  (f-push (- x y)))
+  ;; (f-push (- x y))
+  (- x y))
 
 (defword 0 bye ()
   (setf *d-stack* nil)
@@ -16,3 +18,6 @@
 (defword 0 pop ()
   (pop *d-stack*))
 
+(defword 0 push ()
+  (push *retval* *d-stack*)
+  (values))

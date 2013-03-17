@@ -6,7 +6,9 @@
 
 ;;; "sforth" goes here. Hacks and glory await!
 
+(defvar *retval* nil "Holding return value for words")
 (defvar *words* (make-hash-table) "The definitions of words")
+(defvar *words-code* (make-hash-table) "The definition in sexp for words, for partial evaluation")
 (defvar *d-stack* nil "The data stack")
 
 (defun repl ()
@@ -25,11 +27,12 @@
     *d-stack*))
 
 (defun pe-interpret (line)
-  (let ((eof (load-time-value (gensym "EOF"))))
+  (let ((eof (load-time-value (gensym "EOF")))
+        code)
     (iter (for (values e i) = (read-from-string line nil eof :start (or i 0)))
           (until (eq e eof))
-          (dispatch e))
-    *d-stack*))
+          (setf code (append (pe-dispatch e) code))
+          (finally (return `(locally ,@code *d-stack*))))))
 
 (defun dispatch (e)
   (typecase e
@@ -39,13 +42,31 @@
                   (format t "~&No definition for word: ~a~%" e))))
     (otherwise (push e *d-stack*))))
 
+(defun pe-dispatch (e)
+  (typecase e
+    (symbol (let ((definition (gethash e *words-code*)))
+              (if definition
+                  (pe-run definition)
+                  (error "~&No definition for word: ~a~%" e))))
+    (otherwise
+     (push e *d-stack*)
+     (values))))
+
 (defun run (definition)
   (destructuring-bind (nargs fun) definition
     (assert (>= (length *d-stack*) nargs))
     (let ((args (loop repeat nargs
                       collect (pop *d-stack*))))       
-      (prin1 (apply fun args))
+      (setf *retval* (prin1 (apply fun args)))
       (terpri))))
+
+(defun pe-run (definition)
+  (destructuring-bind (nargs fun) definition
+    (assert (>= (length *d-stack*) nargs))
+    (let ((args (loop repeat nargs
+                      collect (pop *d-stack*))))       
+      `((prin1 (funcall ,fun ,@args))
+        (terpri)))))
 
 (defmacro defword (nargs name args &body body)
   `(eval-when (:compile-toplevel :load-toplevel :execute) 
@@ -54,11 +75,12 @@
                     `(progn
                        (push ,exp *d-stack*)
                        ,exp))))
-       (let ((fun (lambda ,args
-                    #+debug (print (list ',name ,@args))
-                    ,@body)))
+       (let ((code '(lambda ,args ,@body))
+             (fun (lambda ,args ,@body)))
          (setf (gethash ',name *words*)
-               (list ,nargs fun))))))
+               (list ,nargs fun))
+         (setf (gethash ',name *words-code*)
+               (list ,nargs code))))))
 
 (defun reset ()
   (setf *d-stack* nil))
