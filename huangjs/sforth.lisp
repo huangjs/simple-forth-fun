@@ -63,10 +63,10 @@
 (defun reset ()
   (setf *d-stack* nil))
 
-(defun load-file (filename)
+(defun load-file (filename &key compilep)
   (with-open-file (f filename)
     (let ((lines (make-string (file-length f))))
       (read-sequence lines f)
       (if compilep
-          (funcall (compile (lambda () (pe-interpret lines))))
+          (funcall (compile nil `(lambda () ,(pe-interpret lines))))
           (interpret lines)))))
