@@ -26,13 +26,14 @@
           (dispatch e))
     *d-stack*))
 
-(defun pe-interpret (line)
+(defun pe-interpret (line) 
   (let ((eof (load-time-value (gensym "EOF")))
-        code)
+        *code*)
+    (declare (special *code*))
     (iter (for (values e i) = (read-from-string line nil eof :start (or i 0)))
           (until (eq e eof))
-          (setf code (append (pe-dispatch e) code))
-          (finally (return `(locally ,@code *d-stack*))))))
+          (pe-dispatch e)
+          (finally (return `(locally ,@*code* *d-stack*))))))
 
 (defun dispatch (e)
   (typecase e
@@ -43,14 +44,21 @@
     (otherwise (push e *d-stack*))))
 
 (defun pe-dispatch (e)
-  (typecase e
-    (symbol (let ((definition (gethash e *words-code*)))
-              (if definition
-                  (pe-run definition)
-                  (error "~&No definition for word: ~a~%" e))))
+  (declare (special *code*))
+  ;; special operator for compiled mode
+  (case e
+    (push
+     (push `(locally ,@*code*) *d-stack*)
+     (setf *code* nil))
+    (.s)
+    ;; general words
     (otherwise
-     (push e *d-stack*)
-     (values))))
+     (typecase e
+       (symbol (let ((definition (gethash e *words-code*)))
+                 (if definition
+                     (setf *code* (append *code* (pe-run definition)))
+                     (error "~&No definition for word: ~a~%" e))))
+       (otherwise (push e *d-stack*))))))
 
 (defun run (definition)
   (destructuring-bind (nargs fun) definition
@@ -65,8 +73,9 @@
     (assert (>= (length *d-stack*) nargs))
     (let ((args (loop repeat nargs
                       collect (pop *d-stack*))))       
-      `((prin1 (funcall ,fun ,@args))
-        (terpri)))))
+      `((prog1
+            (prin1 (funcall ,fun ,@args))
+          (terpri))))))
 
 (defmacro defword (nargs name args &body body)
   `(eval-when (:compile-toplevel :load-toplevel :execute) 
@@ -90,5 +99,5 @@
     (let ((lines (make-string (file-length f))))
       (read-sequence lines f)
       (if compilep
-          (funcall (compile nil `(lambda () ,(pe-interpret lines))))
+          (funcall (compile nil `(lambda () (reset) ,(pe-interpret lines))))
           (interpret lines)))))
