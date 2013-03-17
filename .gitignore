@@ -4,3 +4,9 @@ pom.xml
 /classes/
 /targets/
 .lein-deps-sum
+fasl/*
+*.fasl
+*.log
+*.core
+*~
+nogit/*
