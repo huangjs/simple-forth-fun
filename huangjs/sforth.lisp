@@ -26,14 +26,31 @@
           (dispatch e))
     *d-stack*))
 
-(defun pe-interpret (line) 
+(defun pe-interpret (line)
+  "Partial evaluator for sforth.
+
+\(pe-interpret \"0 1 + push 2 3 - push + 4 5\")
+
+will be compiled to 
+
+\(LOCALLY
+ (PROG1
+     (PRIN1
+      (FUNCALL (LAMBDA (X Y) (+ X Y))
+               (LOCALLY
+                (PROG1 (PRIN1 (FUNCALL (LAMBDA (X Y) (- X Y)) 3 2)) (TERPRI)))
+               (LOCALLY
+                (PROG1 (PRIN1 (FUNCALL (LAMBDA (X Y) (+ X Y)) 1 0))
+                  (TERPRI)))))
+   (TERPRI)))
+"
   (let ((eof (load-time-value (gensym "EOF")))
         *code*)
     (declare (special *code*))
     (iter (for (values e i) = (read-from-string line nil eof :start (or i 0)))
           (until (eq e eof))
           (pe-dispatch e)
-          (finally (return `(locally ,@*code* *d-stack*))))))
+          (finally (return `(locally ,@*code*))))))
 
 (defun dispatch (e)
   (typecase e
@@ -45,11 +62,12 @@
 
 (defun pe-dispatch (e)
   (declare (special *code*))
-  ;; special operator for compiled mode
+  ;; optimize out push so there will be no stack usage :)
   (case e
     (push
      (push `(locally ,@*code*) *d-stack*)
      (setf *code* nil))
+    ;; no stack, no states
     (.s)
     ;; general words
     (otherwise
