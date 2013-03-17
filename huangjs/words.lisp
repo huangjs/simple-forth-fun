@@ -6,3 +6,7 @@
 (defword 0 bye ()
   (throw 'exit nil))
 
+(defword 0 .s ()
+  (prin1 *d-stack*)
+  (terpri))
+
