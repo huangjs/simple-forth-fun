@@ -1,22 +1,18 @@
 (in-package :sforth)
 
 (defword 2 + (x y)
-  (+ x y))
+  (f-push (+ x y)))
 
 (defword 2 - (x y)
-  (- x y))
+  (f-push (- x y)))
 
 (defword 0 bye ()
+  (setf *d-stack* nil)
   (throw 'exit nil))
 
 (defword 0 .s ()
-  (prin1 *d-stack*)
-  (terpri))
+  *d-stack*)
 
 (defword 0 pop ()
   (pop *d-stack*))
-
-(defword 1 push (x)
-  ;; FIXME:
-  (push x *d-stack*))
 

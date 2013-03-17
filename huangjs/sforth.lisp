@@ -2,6 +2,8 @@
 
 (in-package #:sforth)
 
+(declaim (optimize debug))
+
 ;;; "sforth" goes here. Hacks and glory await!
 
 (defvar *words* (make-hash-table) "The definitions of words")
@@ -16,9 +18,10 @@
   (values))
 
 (defun interpret (line)
-  (iter (for (values e i) = (read-from-string line nil nil :start (or i 0)))
-        (while e)
-        (dispatch e)))
+  (let ((eof (load-time-value (gensym "EOF"))))
+    (iter (for (values e i) = (read-from-string line nil eof :start (or i 0)))
+          (until (eq e eof))
+          (dispatch e))))
 
 (defun dispatch (e)
   (typecase e
@@ -37,8 +40,15 @@
       (terpri))))
 
 (defmacro defword (nargs name args &body body)
-  `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (let ((fun (lambda ,args ,@body)))
-       (setf (gethash ',name *words*)
-             (list ,nargs fun)))))
+  `(eval-when (:compile-toplevel :load-toplevel :execute) 
+     (macrolet ((f-push (exp)
+                  (alexandria:once-only (exp)
+                    `(progn
+                       (push ,exp *d-stack*)
+                       ,exp))))
+       (let ((fun (lambda ,args
+                    #+debug (print (list ',name ,@args))
+                    ,@body)))
+         (setf (gethash ',name *words*)
+               (list ,nargs fun))))))
 
