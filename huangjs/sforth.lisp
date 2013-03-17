@@ -21,7 +21,15 @@
   (let ((eof (load-time-value (gensym "EOF"))))
     (iter (for (values e i) = (read-from-string line nil eof :start (or i 0)))
           (until (eq e eof))
-          (dispatch e))))
+          (dispatch e))
+    *d-stack*))
+
+(defun pe-interpret (line)
+  (let ((eof (load-time-value (gensym "EOF"))))
+    (iter (for (values e i) = (read-from-string line nil eof :start (or i 0)))
+          (until (eq e eof))
+          (dispatch e))
+    *d-stack*))
 
 (defun dispatch (e)
   (typecase e
@@ -52,3 +60,13 @@
          (setf (gethash ',name *words*)
                (list ,nargs fun))))))
 
+(defun reset ()
+  (setf *d-stack* nil))
+
+(defun load-file (filename)
+  (with-open-file (f filename)
+    (let ((lines (make-string (file-length f))))
+      (read-sequence lines f)
+      (if compilep
+          (funcall (compile (lambda () (pe-interpret lines))))
+          (interpret lines)))))
