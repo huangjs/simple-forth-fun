@@ -10,11 +10,23 @@
 (defun f-pop ()
   (pop *stack*))
 
-(defun ff-+ ()
-  ;; n n - n
-  ;; +
-  (f-push (+ (f-pop) (f-pop))))
-(setf (gethash "+" *dict*) #'ff-+)
+(defmacro define-word (name &rest body)
+  (let ((tmp-fn (gensym)))
+    `(progn
+       (defun ,tmp-fn ()
+         ,@body
+         )
+       (setf (gethash ,name *dict*) #',tmp-fn))))
+
+;; 数学计算
+
+;; n n - n
+(define-word "-" (f-push 
+                  (let ((n1 (f-pop)))
+                    (- (f-pop) n1))))
+
+(define-word "+" (f-push (+ (f-pop) (f-pop))))
+
 
 (defun eval-forth (s)
   (cond ((equal s ".s") (format nil "~A" *stack*))
