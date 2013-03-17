@@ -24,16 +24,24 @@
 (define-word "-" (f-push 
                   (let ((n1 (f-pop)))
                     (- (f-pop) n1))))
+(define-word "/" (f-push 
+                  (let ((n1 (f-pop)))
+                    (/ (f-pop) n1))))
 
 (define-word "+" (f-push (+ (f-pop) (f-pop))))
+(define-word "*" (f-push (+ (f-pop) (f-pop))))
 
+
+(defun f-push-value (s)
+  ;; TODO 判断是否是数字
+  (f-push (parse-integer s)))
 
 (defun eval-forth (s)
-  (cond ((equal s ".s") (format nil "~A" *stack*))
-        ((equal s ".") (pop *stack*))
-        
-        (t "ok")))
+  (let ((forth-fn (gethash s *dict*)))
+    (if forth-fn
+        (funcall forth-fn)
+        (f-push-value s))))
 
 (defun forth-repl ()
-  (loop (print (eval-forth (read)))))
+  (loop (print (eval-forth (read-line)))))
 
